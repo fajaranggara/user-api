@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 	"user-api/models"
 
@@ -16,10 +17,30 @@ type createUserInput struct {
 
 func GetAllUser(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
-	var users []models.User
-	db.Find(&users)
+	var usr []models.User
+	
+	limitPerPage := 5
 
-	c.JSON(http.StatusOK, gin.H{"data": users})
+	qN := ""
+	qS := ""
+	p := 0
+	
+	if qName := c.Query("name"); qName != "" {
+		qN += "name LIKE " + "'%" + qName + "%'"
+	}
+
+	if qSort := c.Query("sort"); qSort != "" {
+		qS += "name " + qSort
+	}
+
+	if page, _ := strconv.Atoi(c.Query("page")); page != 0 {
+		p = (page-1)*limitPerPage
+		db.Where(qN).Order(qS).Limit(5).Offset(p).Find(&usr)
+	} else {
+		db.Where(qN).Order(qS).Find(&usr)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": usr})
 }
 
 func CreateUser(c *gin.Context) {
