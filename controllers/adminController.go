@@ -52,8 +52,8 @@ func RegistAdmin(c *gin.Context) {
     }
 
     user := map[string]string{
-        "username": usr.Name,
-        "email":    usr.Email,
+        "name": usr.Name,
+        "email": usr.Email,
         "role": usr.Role,
     }
 
@@ -63,10 +63,12 @@ func RegistAdmin(c *gin.Context) {
 
 func CreateUser(c *gin.Context) {
     currentUser, errAuth := models.GetCurrentUser(c)
+    // authentication check
 	if errAuth != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "You need to sign in"})
 		return
 	}
+    // authorization check
     if currentUser.Role != "admin" {
 		c.JSON(http.StatusBadRequest, gin.H{"forbidden": "You are not Admin"})
         return
@@ -95,20 +97,22 @@ func CreateUser(c *gin.Context) {
     }
 
     user := map[string]string{
-        "username": input.Name,
-        "email":    input.Email,
+        "name": input.Name,
+        "email": input.Email,
     }
 
-    c.JSON(http.StatusOK, gin.H{"message": "Registration success", "user": user})
+    c.JSON(http.StatusOK, gin.H{"message": "Create user success", "user": user})
 }
 
 
 func UpdateUser(c *gin.Context) {
     currentUser, errAuth := models.GetCurrentUser(c)
+    // authentication check
 	if errAuth != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "You need to sign in"})
 		return
 	}
+    // authorization check
     if currentUser.Role != "admin" {
 		c.JSON(http.StatusBadRequest, gin.H{"forbidden": "You are not Admin"})
         return
@@ -127,24 +131,26 @@ func UpdateUser(c *gin.Context) {
         return
     }
 
-    var updatedInput models.User
-    updatedInput.Name = input.Name
-    updatedInput.Email = input.Email
-    updatedInput.Password = input.Password
-    updatedInput.UpdatedAt = time.Now()
+    var updatedUser models.User
+    updatedUser.Name = input.Name
+    updatedUser.Email = input.Email
+    updatedUser.Password = input.Password
+    updatedUser.UpdatedAt = time.Now()
 
-    db.Model(&user).Updates(updatedInput)
+    db.Model(&user).Updates(updatedUser)
 
-    c.JSON(http.StatusOK, gin.H{"data": user})
+    c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
 
 func DeleteUser(c *gin.Context) {
     currentUser, errAuth := models.GetCurrentUser(c)
+    // authentication check
 	if errAuth != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "You need to sign in"})
 		return
 	}
+    // autorization check
     if currentUser.Role != "admin" {
 		c.JSON(http.StatusBadRequest, gin.H{"forbidden": "You are not Admin"})
         return
@@ -159,6 +165,6 @@ func DeleteUser(c *gin.Context) {
 
     db.Delete(&user)
 
-    c.JSON(http.StatusOK, gin.H{"data": true})
+    c.JSON(http.StatusOK, gin.H{"message": user.Name + " deleted"})
 }
 
