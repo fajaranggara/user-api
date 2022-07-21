@@ -25,8 +25,7 @@ Fitur ini dilengkapi dengan fungsi:
 - **Sort** secara Ascending/Descending (contoh endpoint `localhost:8080/users?sort=asc`)
 - **Pagination** dengan limit 5 user yang ditampilkan (contoh endpoint `localhost:8080/users?page=2`)
 
-> Note: Fungsi **Filter**, **Search**, **Sort**, dan **Pagination** bisa digunakan bersamaan
-
+> Note: Fungsi **Filter**, **Search**, **Sort**, dan **Pagination** bisa digunakan bersamaan.
 > Contoh: `localhost:8080/users?role=user&name=fajar&sort=desc&page=1`
 
 #### 2. Menampilkan data satu User (User tertentu)
