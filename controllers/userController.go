@@ -1,29 +1,75 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 	"user-api/models"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-type createUserInput struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+type LoginInput struct {
+	Email string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+func Login(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+	var input LoginInput
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	usr := models.User{}
+
+	usr.Email = input.Email
+	usr.Password = input.Password
+
+	token, err := models.LoginCheck(usr.Email, usr.Password, db)
+
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "email or password is incorrect."})
+		return
+	}
+
+	user := map[string]string{
+		"email": usr.Email,
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "login success", "user": user, "token": token})
+}
+
+func GetProfile(c *gin.Context){
+	// get current user
+	usr, err := models.GetCurrentUser(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You need to sign in"})
+		return
+	}
+
+	usr.HidePassword()
+
+	c.JSON(http.StatusOK, gin.H{"data": usr})
 }
 
 func GetAllUser(c *gin.Context) {
-	db := c.MustGet("db").(*gorm.DB)
-	var usr []models.User
-	
-	limitPerPage := 5
+	_, errAuth := models.GetCurrentUser(c)
+	if errAuth != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You need to sign in"})
+		return
+	}
 
+	db := c.MustGet("db").(*gorm.DB)
+	var user []models.User
+	
 	qN := ""
 	qS := ""
-	p := 0
+	limitPerPage := 5
 	
 	if qName := c.Query("name"); qName != "" {
 		qN += "name LIKE " + "'%" + qName + "%'"
@@ -34,75 +80,42 @@ func GetAllUser(c *gin.Context) {
 	}
 
 	if page, _ := strconv.Atoi(c.Query("page")); page != 0 {
-		p = (page-1)*limitPerPage
-		db.Where(qN).Order(qS).Limit(5).Offset(p).Find(&usr)
+		p := (page-1)*limitPerPage
+		db.Where(qN).Order(qS).Limit(limitPerPage).Offset(p).Find(&user)
 	} else {
-		db.Where(qN).Order(qS).Find(&usr)
+		db.Where(qN).Order(qS).Find(&user)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": usr})
-}
+	listUser := []map[string]string{}
 
-func CreateUser(c *gin.Context) {
-    var input createUserInput
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
+	for _, usr := range(user) {
+		userData := map[string]string{
+			"id": strconv.Itoa(int(usr.ID)),
+			"name": usr.Name,
+			"email": usr.Email,
+			"password": "******",
+			"role": usr.Role,
+		}
+		listUser = append(listUser, userData)
+	}
 
-    user := models.User{Name: input.Name, Email: input.Email}
-    db := c.MustGet("db").(*gorm.DB)
-    db.Create(&user)
-
-    c.JSON(http.StatusOK, gin.H{"data": user})
+	c.JSON(http.StatusOK, gin.H{"data": listUser})
 }
 
 func GetUserById(c *gin.Context) {
-    var user models.User
+	_, errAuth := models.GetCurrentUser(c)
+	if errAuth != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You need to sign in"})
+		return
+	}
 
     db := c.MustGet("db").(*gorm.DB)
+    var user models.User
+
     if err := db.Where("id = ?", c.Param("id")).First(&user).Error; err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Record not found!"})
         return
     }
 
     c.JSON(http.StatusOK, gin.H{"data": user})
-}
-
-func UpdateUser(c *gin.Context) {
-
-    db := c.MustGet("db").(*gorm.DB)
-    var user models.User
-    if err := db.Where("id = ?", c.Param("id")).First(&user).Error; err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Record not found!"})
-        return
-    }
-
-    var input createUserInput
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
-
-    var updatedInput models.User
-    updatedInput.Name = input.Name
-    updatedInput.Email = input.Email
-    updatedInput.UpdatedAt = time.Now()
-
-    db.Model(&user).Updates(updatedInput)
-
-    c.JSON(http.StatusOK, gin.H{"data": user})
-}
-
-func DeleteUser(c *gin.Context) {
-    db := c.MustGet("db").(*gorm.DB)
-    var user models.User
-    if err := db.Where("id = ?", c.Param("id")).First(&user).Error; err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Record not found!"})
-        return
-    }
-
-    db.Delete(&user)
-
-    c.JSON(http.StatusOK, gin.H{"data": true})
 }

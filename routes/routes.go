@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 
 	"user-api/controllers"
+	"user-api/middlewares"
 )
 
 func SetupRouter(db *gorm.DB) *gin.Engine {
@@ -14,11 +15,20 @@ func SetupRouter(db *gorm.DB) *gin.Engine {
     r.Use(func(c *gin.Context) {
         c.Set("db", db)
     })
-    r.GET("/users", controllers.GetAllUser)
-    r.POST("/users", controllers.CreateUser)
-    r.GET("/users/:id", controllers.GetUserById)
-    r.PATCH("/users/:id", controllers.UpdateUser)
-    r.DELETE("users/:id", controllers.DeleteUser)
+
+    r.POST("/login", controllers.Login)
+
+    auth := r.Use(middlewares.JwtAuthMiddleware())
+    // admin authorization
+    auth.POST("/admin", controllers.RegistAdmin)
+	auth.POST("/users", controllers.CreateUser)
+    auth.PATCH("/users/:id", controllers.UpdateUser)
+    auth.DELETE("users/:id", controllers.DeleteUser)
+
+    // user & admin authorization
+    auth.GET("/profile", controllers.GetProfile)
+    auth.GET("/users", controllers.GetAllUser)
+    auth.GET("/users/:id", controllers.GetUserById)
 
     return r
 }
